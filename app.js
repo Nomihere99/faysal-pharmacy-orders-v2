@@ -1,5 +1,3 @@
-/* Faysal Pharmacy — Demand & Order Management */
-
 "use strict";
 
 const STORAGE_KEY = "faysalOrdersV2";
@@ -9,15 +7,17 @@ let database = {
     orders: []
 };
 
-let selectedDemands = new Set();
 let currentOrderItems = [];
-let currentDemandFilter = "all";
+let selectedDemands = new Set();
 
+
+// =========================
+// BASIC HELPERS
+// =========================
 
 function $(id) {
     return document.getElementById(id);
 }
-
 
 function escapeHTML(value) {
     const map = {
@@ -34,6 +34,10 @@ function escapeHTML(value) {
 }
 
 
+// =========================
+// LOAD / SAVE DATABASE
+// =========================
+
 function loadDatabase() {
     try {
         const saved = localStorage.getItem(STORAGE_KEY);
@@ -41,17 +45,15 @@ function loadDatabase() {
         if (saved) {
             const parsed = JSON.parse(saved);
 
-            if (parsed && typeof parsed === "object") {
-                database = {
-                    demands: Array.isArray(parsed.demands)
-                        ? parsed.demands
-                        : [],
+            database = {
+                demands: Array.isArray(parsed.demands)
+                    ? parsed.demands
+                    : [],
 
-                    orders: Array.isArray(parsed.orders)
-                        ? parsed.orders
-                        : []
-                };
-            }
+                orders: Array.isArray(parsed.orders)
+                    ? parsed.orders
+                    : []
+            };
         }
     } catch (error) {
         console.error("Could not load saved data:", error);
@@ -62,7 +64,6 @@ function loadDatabase() {
         };
     }
 }
-
 
 function saveDatabase() {
     try {
@@ -78,60 +79,157 @@ function saveDatabase() {
 }
 
 
-function makeId(prefix) {
-    return (
-        prefix +
-        "_" +
-        Date.now() +
-        "_" +
-        Math.random().toString(36).slice(2, 8)
-    );
-}
+// =========================
+// ADD DEMAND MODAL
+// =========================
 
+function openDemandModal() {
 
-function formatDate(value) {
-    if (!value) return "";
+    const modal = $("demandModal");
 
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return "";
+    if (!modal) {
+        console.error("demandModal not found");
+        return;
     }
 
-    return date.toLocaleString();
+    modal.classList.add("active");
+    document.body.style.overflow = "hidden";
+}
+
+function closeDemandModal() {
+
+    const modal = $("demandModal");
+
+    if (!modal) return;
+
+    modal.classList.remove("active");
+    document.body.style.overflow = "";
 }
 
 
-/* =========================
-   DASHBOARD
-========================= */
+// =========================
+// SAVE DEMAND
+// =========================
+
+function saveDemand(event) {
+
+    event.preventDefault();
+
+    const employeeInput = $("employee");
+    const medicineInput = $("medicine");
+    const quantityInput = $("quantity");
+    const noteInput = $("note");
+
+    if (!employeeInput || !medicineInput || !quantityInput) {
+        alert("Form fields could not be found.");
+        return;
+    }
+
+    const employee = employeeInput.value.trim();
+    const medicine = medicineInput.value.trim();
+
+    let quantity = parseInt(quantityInput.value, 10);
+
+    if (!quantity || quantity < 1) {
+        quantity = 1;
+    }
+
+    const note = noteInput
+        ? noteInput.value.trim()
+        : "";
+
+    if (!employee) {
+        alert("Please enter employee name.");
+        employeeInput.focus();
+        return;
+    }
+
+    if (!medicine) {
+        alert("Please enter medicine / product name.");
+        medicineInput.focus();
+        return;
+    }
+
+    const demand = {
+        id: Date.now(),
+        employee: employee,
+        medicine: medicine,
+        quantity: quantity,
+        note: note,
+        status: "pending",
+        createdAt: new Date().toISOString()
+    };
+
+    database.demands.unshift(demand);
+
+    saveDatabase();
+
+    $("demandForm").reset();
+
+    quantityInput.value = 1;
+
+    closeDemandModal();
+
+    updateDashboard();
+    renderDemands();
+
+    alert("Demand saved successfully.");
+}
+
+
+// =========================
+// QUANTITY CONTROLS
+// =========================
+
+function increaseQuantity() {
+
+    const input = $("quantity");
+
+    if (!input) return;
+
+    let value = parseInt(input.value, 10) || 1;
+
+    input.value = value + 1;
+}
+
+function decreaseQuantity() {
+
+    const input = $("quantity");
+
+    if (!input) return;
+
+    let value = parseInt(input.value, 10) || 1;
+
+    if (value > 1) {
+        value--;
+    }
+
+    input.value = value;
+}
+
+
+// =========================
+// DASHBOARD
+// =========================
 
 function updateDashboard() {
 
-    const pending =
-        database.demands.filter(function (item) {
-            return item.status === "pending";
-        }).length;
+    const pending = database.demands.filter(
+        item => item.status === "pending"
+    ).length;
 
-    const ordered =
-        database.demands.filter(function (item) {
-            return item.status === "ordered";
-        }).length;
+    const ordered = database.demands.filter(
+        item => item.status === "ordered"
+    ).length;
 
-    const received =
-        database.demands.filter(function (item) {
-            return item.status === "received";
-        }).length;
+    const received = database.demands.filter(
+        item => item.status === "received"
+    ).length;
 
 
-    const pendingCount =
-        $("pendingCount");
-
-    const orderedCount =
-        $("orderedCount");
-
-    const receivedCount =
-        $("receivedCount");
+    const pendingCount = $("pendingCount");
+    const orderedCount = $("orderedCount");
+    const receivedCount = $("receivedCount");
 
 
     if (pendingCount) {
@@ -145,55 +243,26 @@ function updateDashboard() {
     if (receivedCount) {
         receivedCount.textContent = received;
     }
-
-
-    const pendingAlt =
-        $("summaryPending");
-
-    const orderedAlt =
-        $("summaryOrdered");
-
-    const receivedAlt =
-        $("summaryReceived");
-
-
-    if (pendingAlt) {
-        pendingAlt.textContent = pending;
-    }
-
-    if (orderedAlt) {
-        orderedAlt.textContent = ordered;
-    }
-
-    if (receivedAlt) {
-        receivedAlt.textContent = received;
-    }
 }
 
 
-/* =========================
-   RECENT ACTIVITY
-========================= */
+// =========================
+// DEMANDS LIST
+// =========================
 
-function renderRecentActivity() {
+function renderDemands() {
 
-    const list =
-        $("recentActivity");
+    const list = $("demandsList");
 
     if (!list) return;
 
-
-    const recent =
-        database.demands.slice(0, 5);
-
-
-    if (recent.length === 0) {
+    if (database.demands.length === 0) {
 
         list.innerHTML = `
             <div class="empty-state">
                 <div class="empty-icon">📋</div>
-                <h3>No demands yet</h3>
-                <p>Your recent demands will appear here.</p>
+                <h3>No demands</h3>
+                <p>Medicine demands will appear here.</p>
             </div>
         `;
 
@@ -201,300 +270,185 @@ function renderRecentActivity() {
     }
 
 
-    list.innerHTML =
-        recent.map(function (item) {
+    list.innerHTML = database.demands.map(function (item) {
 
-            return `
-                <div class="activity-card">
+        let statusText = "Pending";
 
-                    <div class="activity-icon">
-                        📦
-                    </div>
+        if (item.status === "ordered") {
+            statusText = "Ordered";
+        }
 
-                    <div class="activity-info">
-
-                        <strong>
-                            ${escapeHTML(item.medicine)}
-                        </strong>
-
-                        <span>
-                            Quantity:
-                            ${Number(item.quantity) || 1}
-                        </span>
-
-                        <small>
-                            ${escapeHTML(
-                                formatDate(item.createdAt)
-                            )}
-                        </small>
-
-                    </div>
-
-                    <div class="activity-status">
-                        ${escapeHTML(
-                            capitalize(
-                                item.status || "pending"
-                            )
-                        )}
-                    </div>
-
-                </div>
-            `;
-
-        }).join("");
-}
+        if (item.status === "received") {
+            statusText = "Received";
+        }
 
 
-/* =========================
-   DEMANDS
-========================= */
+        return `
+            <div class="activity-card">
 
-function renderDemands() {
-
-    const list =
-        $("demandsList");
-
-    if (!list) return;
-
-
-    const searchInput =
-        $("demandSearch");
-
-
-    const searchTerm =
-        searchInput
-            ? searchInput.value.trim().toLowerCase()
-            : "";
-
-
-    const items =
-        database.demands.filter(function (item) {
-
-            const matchesStatus =
-                currentDemandFilter === "all" ||
-                item.status === currentDemandFilter;
-
-
-            const searchable =
-                String(item.medicine || "").toLowerCase() +
-                " " +
-                String(item.note || "").toLowerCase();
-
-
-            const matchesSearch =
-                !searchTerm ||
-                searchable.includes(searchTerm);
-
-
-            return (
-                matchesStatus &&
-                matchesSearch
-            );
-        });
-
-
-    if (items.length === 0) {
-
-        list.innerHTML = `
-            <div class="empty-state">
-
-                <div class="empty-icon">
-                    📋
+                <div class="activity-icon">
+                    📦
                 </div>
 
-                <h3>
-                    No demands
-                </h3>
+                <div class="activity-info">
 
-                <p>
-                    Medicine demands will appear here.
-                </p>
+                    <strong>
+                        ${escapeHTML(item.medicine)}
+                    </strong>
 
-            </div>
-        `;
+                    <span>
+                        Employee: ${escapeHTML(item.employee)}
+                    </span>
 
-        return;
-    }
-
-
-    list.innerHTML =
-        items.map(function (item) {
-
-            const checked =
-                selectedDemands.has(item.id)
-                    ? "checked"
-                    : "";
-
-
-            return `
-                <div
-                    class="activity-card demand-card"
-                    data-demand-id="${escapeHTML(item.id)}"
-                >
-
-                    <div class="activity-icon">
-                        📦
-                    </div>
-
-
-                    <div class="activity-info">
-
-                        <strong>
-                            ${escapeHTML(item.medicine)}
-                        </strong>
-
-                        <span>
-                            Quantity:
-                            ${Number(item.quantity) || 1}
-                        </span>
-
-                        ${
-                            item.note
-                                ? `<span>
-                                    ${escapeHTML(item.note)}
-                                   </span>`
-                                : ""
-                        }
-
-                        <small>
-                            ${escapeHTML(
-                                formatDate(item.createdAt)
-                            )}
-                        </small>
-
-                    </div>
-
-
-                    <div class="activity-status">
-
-                        ${escapeHTML(
-                            capitalize(
-                                item.status || "pending"
-                            )
-                        )}
-
-                    </div>
-
+                    <span>
+                        Quantity: ${item.quantity}
+                    </span>
 
                     ${
-                        item.status === "pending"
-                            ? `
-                                <label class="demand-select">
-
-                                    <input
-                                        type="checkbox"
-                                        class="demand-checkbox"
-                                        data-id="${escapeHTML(item.id)}"
-                                        ${checked}
-                                    >
-
-                                </label>
-                              `
-                            : ""
+                        item.note
+                        ? `<span>${escapeHTML(item.note)}</span>`
+                        : ""
                     }
+
+                    <small>
+                        ${new Date(item.createdAt).toLocaleString()}
+                    </small>
 
                 </div>
-            `;
 
-        }).join("");
+                <div class="activity-status">
+                    ${statusText}
+                </div>
 
+            </div>
+        `;
 
-    list
-        .querySelectorAll(".demand-checkbox")
-        .forEach(function (checkbox) {
-
-            checkbox.addEventListener(
-                "change",
-                function () {
-
-                    const id =
-                        this.dataset.id;
-
-
-                    if (this.checked) {
-
-                        selectedDemands.add(id);
-
-                    } else {
-
-                        selectedDemands.delete(id);
-
-                    }
-
-                }
-            );
-
-        });
+    }).join("");
 }
 
 
-/* =========================
-   ADD DEMAND
-========================= */
+// =========================
+// NAVIGATION
+// =========================
 
-function addDemandFromForm(event) {
+function setupNavigation() {
 
-    event.preventDefault();
+    const navButtons =
+        document.querySelectorAll(".nav[data-page]");
+
+    navButtons.forEach(function (button) {
+
+        button.addEventListener("click", function () {
+
+            const page =
+                button.getAttribute("data-page");
+
+            document.querySelectorAll("[data-page]").forEach(function (item) {
+                item.classList.remove("active");
+            });
+
+            button.classList.add("active");
+
+            document.querySelectorAll(".page, .screen").forEach(function (screen) {
+                screen.classList.remove("active");
+            });
+
+            const target =
+                $(page);
+
+            if (target) {
+                target.classList.add("active");
+            }
+        });
+    });
+}
 
 
-    const medicineInput =
-        $("medicineName");
+// =========================
+// START APPLICATION
+// =========================
 
-    const quantityInput =
-        $("demandQuantity");
+document.addEventListener("DOMContentLoaded", function () {
 
-    const noteInput =
-        $("demandNote");
+    console.log("Faysal Pharmacy app starting...");
+
+    loadDatabase();
 
 
-    if (!medicineInput) {
+    // ADD DEMAND BUTTON
+    const addDemandBtn = $("addDemandBtn");
 
-        console.error(
-            "medicineName input not found."
+    if (addDemandBtn) {
+        addDemandBtn.addEventListener(
+            "click",
+            openDemandModal
         );
-
-        return;
     }
 
 
-    const medicine =
-        medicineInput.value.trim();
+    // CLOSE MODAL
+    const closeButton = $("closeModal");
 
-
-    if (!medicine) {
-
-        alert(
-            "Please enter medicine name."
+    if (closeButton) {
+        closeButton.addEventListener(
+            "click",
+            closeDemandModal
         );
-
-        medicineInput.focus();
-
-        return;
     }
 
 
-    let quantity =
-        parseInt(
-            quantityInput
-                ? quantityInput.value
-                : "1",
-            10
+    // BACKDROP CLOSE
+    const backdrop =
+        document.querySelector("#demandModal .backdrop");
+
+    if (backdrop) {
+        backdrop.addEventListener(
+            "click",
+            closeDemandModal
         );
-
-
-    if (
-        !Number.isFinite(quantity) ||
-        quantity < 1
-    ) {
-
-        quantity = 1;
-
     }
 
 
-    const note =
-        noteInput
-            ? noteInput.value.trim()
+    // DEMAND FORM
+    const form = $("demandForm");
+
+    if (form) {
+        form.addEventListener(
+            "submit",
+            saveDemand
+        );
+    }
+
+
+    // PLUS
+    const plus = $("plus");
+
+    if (plus) {
+        plus.addEventListener(
+            "click",
+            increaseQuantity
+        );
+    }
+
+
+    // MINUS
+    const minus = $("minus");
+
+    if (minus) {
+        minus.addEventListener(
+            "click",
+            decreaseQuantity
+        );
+    }
+
+
+    setupNavigation();
+
+    updateDashboard();
+    renderDemands();
+
+    console.log("Faysal Pharmacy app ready.");
+});rim()
             : "";
 
 
