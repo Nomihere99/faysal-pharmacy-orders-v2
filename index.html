@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#198754">
+<title>Faysal Pharmacy Orders</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div>
+    <h1>Faysal Pharmacy</h1>
+    <p>Demand &amp; Order</p>
+  </div>
+  <button id="clearDataBtn" class="icon-btn">↻</button>
+</header>
+
+<main>
+  <section id="home" class="page active">
+    <button id="addDemandBtn" class="hero-btn">
+      <span class="hero-plus">＋</span>
+      <span><b>Add Demand</b><small>Request medicine or product</small></span>
+    </button>
+
+    <h2>Today</h2>
+    <div class="stats">
+      <div><b id="pendingStat">0</b><small>Pending</small></div>
+      <div><b id="orderedStat">0</b><small>Ordered</small></div>
+      <div><b id="receivedStat">0</b><small>Received</small></div>
+    </div>
+
+    <h2>Recent Demands</h2>
+    <div id="homeList"></div>
+  </section>
+
+  <section id="demands" class="page">
+    <div class="page-head">
+      <h2>Demands</h2>
+      <p>Select pending demands to create an order.</p>
+    </div>
+    <div id="demandList"></div>
+    <button id="makeOrderBtn" class="floating-btn">
+      Create Order <span id="selectedCount">0</span>
+    </button>
+  </section>
+
+  <section id="orders" class="page">
+    <div class="page-head">
+      <h2>Orders</h2>
+      <p>Review orders and mark them received.</p>
+    </div>
+    <div id="orderList"></div>
+  </section>
+
+  <section id="more" class="page">
+    <div class="page-head">
+      <h2>More</h2>
+      <p>App information</p>
+    </div>
+    <div class="info-card">
+      <b>Faysal Pharmacy Orders</b>
+      <p>This is the local prototype. Shared employee data will be connected after the workflow is finalized.</p>
+    </div>
+  </section>
+</main>
+
+<nav class="bottom-nav">
+  <button class="nav active" data-page="home">⌂<small>Home</small></button>
+  <button class="nav" data-page="demands">☷<small>Demands</small></button>
+  <button class="nav" data-page="orders">▣<small>Orders</small></button>
+  <button class="nav" data-page="more">⋮<small>More</small></button>
+</nav>
+
+<div id="demandModal" class="modal">
+  <div class="backdrop"></div>
+  <div class="sheet">
+    <div class="sheet-head">
+      <div><h2>Add Demand</h2><p>Enter the item needed.</p></div>
+      <button id="closeModal" class="close-btn">×</button>
+    </div>
+
+    <form id="demandForm">
+      <label>Employee Name
+        <input id="employee" required placeholder="e.g. Ali">
+      </label>
+
+      <label>Medicine / Product
+        <input id="medicine" required placeholder="e.g. Panadol 500mg">
+      </label>
+
+      <label>Quantity
+        <div class="quantity">
+          <button type="button" id="minus">−</button>
+          <input id="quantity" type="number" min="1" value="1" required>
+          <button type="button" id="plus">＋</button>
+        </div>
+      </label>
+
+      <label>Note <span class="optional">optional</span>
+        <textarea id="note" rows="3" placeholder="Any useful information"></textarea>
+      </label>
+
+      <button class="primary-btn" type="submit">Save Demand</button>
+    </form>
+  </div>
+</div>
+
+<div id="orderModal" class="modal">
+  <div class="backdrop"></div>
+  <div class="sheet">
+    <div class="sheet-head">
+      <div><h2>Order Preview</h2><p>Check the order before sending.</p></div>
+      <button id="closeOrder" class="close-btn">×</button>
+    </div>
+
+    <label>Distributor
+      <input id="distributor" placeholder="e.g. Sami Pharma">
+    </label>
+
+    <div id="orderPreview" class="preview"></div>
+
+    <button id="whatsappBtn" class="whatsapp-btn">Send on WhatsApp</button>
+    <button id="saveOrderBtn" class="primary-btn">Save Order</button>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
