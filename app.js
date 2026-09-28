@@ -1,11 +1,17 @@
 "use strict";
 
 /* =========================================================
-   FAYSAL PHARMACY — DEMAND & ORDER MANAGEMENT
-   Clean version matched to the current index.html
+   FAYSAL PHARMACY
+   DEMAND & ORDER MANAGEMENT
+   COMPLETE CLEAN VERSION
    ========================================================= */
 
 const STORAGE_KEY = "faysalOrdersV2";
+
+
+/* =========================================================
+   DATABASE
+   ========================================================= */
 
 let database = {
     demands: [],
@@ -13,6 +19,7 @@ let database = {
 };
 
 let selectedDemands = new Set();
+
 
 /* =========================================================
    BASIC HELPERS
@@ -22,7 +29,9 @@ function $(id) {
     return document.getElementById(id);
 }
 
+
 function escapeHTML(value) {
+
     const map = {
         "&": "&amp;",
         "<": "&lt;",
@@ -31,195 +40,358 @@ function escapeHTML(value) {
         "'": "&#039;"
     };
 
-    return String(value ?? "").replace(/[&<>"']/g, function (character) {
-        return map[character];
-    });
+    return String(value ?? "").replace(
+        /[&<>"']/g,
+        function (character) {
+            return map[character];
+        }
+    );
 }
+
 
 function makeId(prefix) {
-    return prefix + "_" + Date.now() + "_" +
-        Math.random().toString(36).substring(2, 8);
+
+    return (
+        prefix +
+        "_" +
+        Date.now() +
+        "_" +
+        Math.random()
+            .toString(36)
+            .substring(2, 8)
+    );
 }
 
+
 function formatDate(date) {
+
     if (!date) return "";
 
     try {
+
         return new Date(date).toLocaleString();
+
     } catch (error) {
+
         return "";
+
     }
 }
 
+
+function capitalize(value) {
+
+    if (!value) return "";
+
+    return (
+        value.charAt(0).toUpperCase() +
+        value.slice(1)
+    );
+}
+
+
 /* =========================================================
-   DATABASE
+   DATABASE LOAD
    ========================================================= */
 
 function loadDatabase() {
+
     try {
-        const saved = localStorage.getItem(STORAGE_KEY);
+
+        const saved =
+            localStorage.getItem(STORAGE_KEY);
 
         if (!saved) {
+
             database = {
                 demands: [],
                 orders: []
             };
+
             return;
         }
 
-        const parsed = JSON.parse(saved);
+        const parsed =
+            JSON.parse(saved);
 
         database = {
-            demands: Array.isArray(parsed.demands)
-                ? parsed.demands
-                : [],
-            orders: Array.isArray(parsed.orders)
-                ? parsed.orders
-                : []
+
+            demands:
+                Array.isArray(parsed.demands)
+                    ? parsed.demands
+                    : [],
+
+            orders:
+                Array.isArray(parsed.orders)
+                    ? parsed.orders
+                    : []
+
         };
 
     } catch (error) {
-        console.error("Could not load database:", error);
+
+        console.error(
+            "Could not load saved data:",
+            error
+        );
 
         database = {
             demands: [],
             orders: []
         };
+
     }
 }
 
+
+/* =========================================================
+   DATABASE SAVE
+   ========================================================= */
+
 function saveDatabase() {
+
     try {
+
         localStorage.setItem(
             STORAGE_KEY,
             JSON.stringify(database)
         );
+
     } catch (error) {
-        console.error("Could not save database:", error);
-        alert("Unable to save data on this device.");
+
+        console.error(
+            "Could not save data:",
+            error
+        );
+
+        alert(
+            "Unable to save data on this device."
+        );
+
     }
 }
+
 
 /* =========================================================
    DEMAND MODAL
    ========================================================= */
 
 function openDemandModal() {
+
     const modal = $("demandModal");
 
     if (!modal) return;
 
     modal.classList.add("active");
+
     document.body.style.overflow = "hidden";
 
     setTimeout(function () {
+
         const employee = $("employee");
 
         if (employee) {
             employee.focus();
         }
+
     }, 100);
 }
 
+
 function closeDemandModal() {
+
     const modal = $("demandModal");
 
     if (!modal) return;
 
     modal.classList.remove("active");
+
     document.body.style.overflow = "";
 }
+
 
 /* =========================================================
    SAVE DEMAND
    ========================================================= */
 
 function saveDemand(event) {
-    event.preventDefault();
 
-    const employeeInput = $("employee");
-    const medicineInput = $("medicine");
-    const quantityInput = $("quantity");
-    const noteInput = $("note");
+    if (event) {
+        event.preventDefault();
+    }
 
-    if (!employeeInput || !medicineInput || !quantityInput) {
-        alert("Form fields could not be found.");
+    const employeeInput =
+        $("employee");
+
+    const medicineInput =
+        $("medicine");
+
+    const quantityInput =
+        $("quantity");
+
+    const noteInput =
+        $("note");
+
+
+    if (
+        !employeeInput ||
+        !medicineInput ||
+        !quantityInput
+    ) {
+
+        alert(
+            "Form fields could not be found."
+        );
+
         return;
     }
 
-    const employee = employeeInput.value.trim();
-    const medicine = medicineInput.value.trim();
 
-    let quantity = parseInt(quantityInput.value, 10);
+    const employee =
+        employeeInput.value.trim();
 
-    if (!Number.isFinite(quantity) || quantity < 1) {
+    const medicine =
+        medicineInput.value.trim();
+
+
+    let quantity =
+        parseInt(
+            quantityInput.value,
+            10
+        );
+
+
+    if (
+        !Number.isFinite(quantity) ||
+        quantity < 1
+    ) {
+
         quantity = 1;
+
     }
 
-    const note = noteInput
-        ? noteInput.value.trim()
-        : "";
+
+    const note =
+        noteInput
+            ? noteInput.value.trim()
+            : "";
+
 
     if (!employee) {
-        alert("Please enter employee name.");
+
+        alert(
+            "Please enter employee name."
+        );
+
         employeeInput.focus();
+
         return;
     }
+
 
     if (!medicine) {
-        alert("Please enter medicine / product name.");
+
+        alert(
+            "Please enter medicine / product name."
+        );
+
         medicineInput.focus();
+
         return;
     }
 
+
     const demand = {
+
         id: makeId("demand"),
+
         employee: employee,
+
         medicine: medicine,
+
         quantity: quantity,
+
         note: note,
+
         status: "pending",
-        createdAt: new Date().toISOString()
+
+        createdAt:
+            new Date().toISOString()
+
     };
 
-    database.demands.unshift(demand);
+
+    database.demands.unshift(
+        demand
+    );
+
 
     saveDatabase();
 
-    $("demandForm").reset();
+
+    const form =
+        $("demandForm");
+
+    if (form) {
+        form.reset();
+    }
+
 
     quantityInput.value = 1;
 
+
     closeDemandModal();
 
+
     updateDashboard();
+
     renderHome();
+
     renderDemands();
+
     renderOrders();
 
-    alert("Demand saved successfully.");
+
+    alert(
+        "Demand saved successfully."
+    );
 }
 
+
 /* =========================================================
-   QUANTITY
+   QUANTITY CONTROLS
    ========================================================= */
 
 function increaseQuantity() {
-    const input = $("quantity");
+
+    const input =
+        $("quantity");
 
     if (!input) return;
 
-    let value = parseInt(input.value, 10) || 1;
+    let value =
+        parseInt(
+            input.value,
+            10
+        ) || 1;
 
-    input.value = value + 1;
+    input.value =
+        value + 1;
 }
 
+
 function decreaseQuantity() {
-    const input = $("quantity");
+
+    const input =
+        $("quantity");
 
     if (!input) return;
 
-    let value = parseInt(input.value, 10) || 1;
+    let value =
+        parseInt(
+            input.value,
+            10
+        ) || 1;
 
     if (value > 1) {
         value--;
@@ -228,42 +400,68 @@ function decreaseQuantity() {
     input.value = value;
 }
 
+
 /* =========================================================
    DASHBOARD
    ========================================================= */
 
 function updateDashboard() {
 
-    const pending = database.demands.filter(function (item) {
-        return item.status === "pending";
-    }).length;
+    const pending =
+        database.demands.filter(
+            function (item) {
+                return item.status === "pending";
+            }
+        ).length;
 
-    const ordered = database.demands.filter(function (item) {
-        return item.status === "ordered";
-    }).length;
 
-    const received = database.demands.filter(function (item) {
-        return item.status === "received";
-    }).length;
+    const ordered =
+        database.demands.filter(
+            function (item) {
+                return item.status === "ordered";
+            }
+        ).length;
 
-    const pendingStat = $("pendingStat");
-    const orderedStat = $("orderedStat");
-    const receivedStat = $("receivedStat");
+
+    const received =
+        database.demands.filter(
+            function (item) {
+                return item.status === "received";
+            }
+        ).length;
+
+
+    const pendingStat =
+        $("pendingStat");
+
+    const orderedStat =
+        $("orderedStat");
+
+    const receivedStat =
+        $("receivedStat");
+
 
     if (pendingStat) {
-        pendingStat.textContent = pending;
+        pendingStat.textContent =
+            pending;
     }
+
 
     if (orderedStat) {
-        orderedStat.textContent = ordered;
+        orderedStat.textContent =
+            ordered;
     }
 
+
     if (receivedStat) {
-        receivedStat.textContent = received;
+        receivedStat.textContent =
+            received;
     }
+
 
     updateSelectedCount();
 }
+
 
 /* =========================================================
    HOME
@@ -271,61 +469,88 @@ function updateDashboard() {
 
 function renderHome() {
 
-    const list = $("homeList");
+    const list =
+        $("homeList");
 
     if (!list) return;
 
-    const recent = database.demands.slice(0, 5);
+
+    const recent =
+        database.demands.slice(0, 5);
+
 
     if (recent.length === 0) {
 
         list.innerHTML = `
+
             <div class="empty-state">
-                <div class="empty-icon">📋</div>
-                <h3>No demands yet</h3>
-                <p>Your recent demands will appear here.</p>
+
+                <div class="empty-icon">
+                    📋
+                </div>
+
+                <h3>
+                    No demands yet
+                </h3>
+
+                <p>
+                    Your recent demands will appear here.
+                </p>
+
             </div>
+
         `;
 
         return;
     }
 
-    list.innerHTML = recent.map(function (item) {
 
-        return `
-            <div class="activity-card">
+    list.innerHTML =
+        recent.map(
+            function (item) {
 
-                <div class="activity-icon">📦</div>
+                return `
 
-                <div class="activity-info">
+                    <div class="activity-card">
 
-                    <strong>
-                        ${escapeHTML(item.medicine)}
-                    </strong>
+                        <div class="activity-icon">
+                            📦
+                        </div>
 
-                    <span>
-                        ${escapeHTML(item.employee)}
-                    </span>
+                        <div class="activity-info">
 
-                    <span>
-                        Quantity: ${item.quantity}
-                    </span>
+                            <strong>
+                                ${escapeHTML(item.medicine)}
+                            </strong>
 
-                    <small>
-                        ${formatDate(item.createdAt)}
-                    </small>
+                            <span>
+                                ${escapeHTML(item.employee)}
+                            </span>
 
-                </div>
+                            <span>
+                                Quantity: ${item.quantity}
+                            </span>
 
-                <div class="activity-status">
-                    ${escapeHTML(capitalize(item.status))}
-                </div>
+                            <small>
+                                ${formatDate(item.createdAt)}
+                            </small>
 
-            </div>
-        `;
+                        </div>
 
-    }).join("");
+                        <div class="activity-status">
+                            ${escapeHTML(
+                                capitalize(item.status)
+                            )}
+                        </div>
+
+                    </div>
+
+                `;
+
+            }
+        ).join("");
 }
+
 
 /* =========================================================
    DEMANDS
@@ -333,22 +558,42 @@ function renderHome() {
 
 function renderDemands() {
 
-    const list = $("demandList");
+    const list =
+        $("demandList");
 
     if (!list) return;
 
-    const pendingDemands = database.demands.filter(function (item) {
-        return item.status === "pending";
-    });
+
+    const pendingDemands =
+        database.demands.filter(
+            function (item) {
+
+                return item.status === "pending";
+
+            }
+        );
+
 
     if (pendingDemands.length === 0) {
 
         list.innerHTML = `
+
             <div class="empty-state">
-                <div class="empty-icon">📋</div>
-                <h3>No pending demands</h3>
-                <p>New medicine demands will appear here.</p>
+
+                <div class="empty-icon">
+                    📋
+                </div>
+
+                <h3>
+                    No pending demands
+                </h3>
+
+                <p>
+                    New medicine demands will appear here.
+                </p>
+
             </div>
+
         `;
 
         updateSelectedCount();
@@ -356,86 +601,542 @@ function renderDemands() {
         return;
     }
 
-    list.innerHTML = pendingDemands.map(function (item) {
 
-        const checked = selectedDemands.has(item.id)
-            ? "checked"
-            : "";
+    list.innerHTML =
+        pendingDemands.map(
+            function (item) {
 
-        return `
-            <label class="activity-card demand-select-card">
+                const checked =
+                    selectedDemands.has(
+                        item.id
+                    )
+                        ? "checked"
+                        : "";
 
-                <div class="activity-icon">
-                    <input
-                        type="checkbox"
-                        class="demand-checkbox"
-                        data-id="${escapeHTML(item.id)}"
-                        ${checked}
-                    >
-                </div>
 
-                <div class="activity-info">
+                return `
 
-                    <strong>
-                        ${escapeHTML(item.medicine)}
-                    </strong>
+                    <label class="activity-card demand-select-card">
 
-                    <span>
-                        Employee: ${escapeHTML(item.employee)}
-                    </span>
+                        <div class="activity-icon">
 
-                    <span>
-                        Quantity: ${item.quantity}
-                    </span>
+                            <input
+                                type="checkbox"
+                                class="demand-checkbox"
+                                data-id="${escapeHTML(item.id)}"
+                                ${checked}
+                            >
 
-                    ${
-                        item.note
-                            ? `<span>${escapeHTML(item.note)}</span>`
-                            : ""
-                    }
+                        </div>
 
-                    <small>
-                        ${formatDate(item.createdAt)}
-                    </small>
 
-                </div>
+                        <div class="activity-info">
 
-                <div class="activity-status">
-                    Pending
-                </div>
+                            <strong>
+                                ${escapeHTML(item.medicine)}
+                            </strong>
 
-            </label>
-        `;
+                            <span>
+                                Employee:
+                                ${escapeHTML(item.employee)}
+                            </span>
 
-    }).join("");
+                            <span>
+                                Quantity:
+                                ${item.quantity}
+                            </span>
 
-    document.querySelectorAll(".demand-checkbox").forEach(function (checkbox) {
+                            ${
+                                item.note
+                                    ? `
+                                        <span>
+                                            ${escapeHTML(item.note)}
+                                        </span>
+                                      `
+                                    : ""
+                            }
 
-        checkbox.addEventListener("change", function () {
+                            <small>
+                                ${formatDate(item.createdAt)}
+                            </small>
 
-            const id = this.dataset.id;
+                        </div>
 
-            if (this.checked) {
-                selectedDemands.add(id);
-            } else {
-                selectedDemands.delete(id);
+
+                        <div class="activity-status">
+                            Pending
+                        </div>
+
+                    </label>
+
+                `;
+
             }
+        ).join("");
 
-            updateSelectedCount();
-        });
 
-    });
+    document
+        .querySelectorAll(
+            ".demand-checkbox"
+        )
+        .forEach(
+            function (checkbox) {
+
+                checkbox.addEventListener(
+                    "change",
+                    function () {
+
+                        const id =
+                            this.dataset.id;
+
+
+                        if (this.checked) {
+
+                            selectedDemands.add(
+                                id
+                            );
+
+                        } else {
+
+                            selectedDemands.delete(
+                                id
+                            );
+
+                        }
+
+
+                        updateSelectedCount();
+
+                    }
+                );
+
+            }
+        );
+
 
     updateSelectedCount();
 }
 
+
 /* =========================================================
-   SELECTED DEMANDS
+   SELECTED COUNT
    ========================================================= */
 
 function updateSelectedCount() {
 
-    const count = $("selectedCount");
+    const count =
+        $("selectedCount");
+
+    if (!count) return;
+
+    count.textContent =
+        selectedDemands.size;
+}
+
+
+/* =========================================================
+   OPEN ORDER MODAL
+   ========================================================= */
+
+function openOrderModal() {
+
+    const selected =
+        database.demands.filter(
+            function (item) {
+
+                return (
+                    selectedDemands.has(item.id) &&
+                    item.status === "pending"
+                );
+
+            }
+        );
+
+
+    if (selected.length === 0) {
+
+        alert(
+            "Please select at least one pending demand."
+        );
+
+        return;
+    }
+
+
+    const modal =
+        $("orderModal");
+
+    if (!modal) {
+
+        alert(
+            "Order window could not be found."
+        );
+
+        return;
+    }
+
+
+    const preview =
+        $("orderPreview");
+
+
+    if (preview) {
+
+        preview.innerHTML =
+            selected.map(
+                function (item) {
+
+                    return `
+
+                        <div class="preview-item">
+
+                            <strong>
+                                ${escapeHTML(item.medicine)}
+                            </strong>
+
+                            <span>
+                                Qty:
+                                ${item.quantity}
+                            </span>
+
+                        </div>
+
+                    `;
+
+                }
+            ).join("");
+
+    }
+
+
+    const distributor =
+        $("distributor");
+
+
+    if (distributor) {
+        distributor.value = "";
+    }
+
+
+    modal.classList.add(
+        "active"
+    );
+
+
+    document.body.style.overflow =
+        "hidden";
+}
+
+
+/* =========================================================
+   CLOSE ORDER MODAL
+   ========================================================= */
+
+function closeOrderModal() {
+
+    const modal =
+        $("orderModal");
+
+    if (!modal) return;
+
+
+    modal.classList.remove(
+        "active"
+    );
+
+
+    document.body.style.overflow =
+        "";
+}
+
+
+/* =========================================================
+   SAVE ORDER
+   ========================================================= */
+
+function saveOrder() {
+
+    const selected =
+        database.demands.filter(
+            function (item) {
+
+                return (
+                    selectedDemands.has(item.id) &&
+                    item.status === "pending"
+                );
+
+            }
+        );
+
+
+    if (selected.length === 0) {
+
+        alert(
+            "Please select at least one demand."
+        );
+
+        return;
+    }
+
+
+    const distributorInput =
+        $("distributor");
+
+
+    const distributor =
+        distributorInput
+            ? distributorInput.value.trim()
+            : "";
+
+
+    if (!distributor) {
+
+        alert(
+            "Please enter distributor name."
+        );
+
+
+        if (distributorInput) {
+            distributorInput.focus();
+        }
+
+
+        return;
+    }
+
+
+    const order = {
+
+        id: makeId("order"),
+
+        distributor: distributor,
+
+        status: "ordered",
+
+        items:
+            selected.map(
+                function (item) {
+
+                    return {
+
+                        demandId:
+                            item.id,
+
+                        medicine:
+                            item.medicine,
+
+                        quantity:
+                            item.quantity,
+
+                        employee:
+                            item.employee
+
+                    };
+
+                }
+            ),
+
+        createdAt:
+            new Date().toISOString()
+
+    };
+
+
+    database.orders.unshift(
+        order
+    );
+
+
+    selected.forEach(
+        function (item) {
+
+            item.status =
+                "ordered";
+
+        }
+    );
+
+
+    selectedDemands.clear();
+
+
+    saveDatabase();
+
+
+    closeOrderModal();
+
+
+    updateDashboard();
+
+    renderHome();
+
+    renderDemands();
+
+    renderOrders();
+
+
+    alert(
+        "Order saved successfully."
+    );
+}
+
+
+/* =========================================================
+   WHATSAPP
+   ========================================================= */
+
+function sendOrderWhatsApp() {
+
+    const selected =
+        database.demands.filter(
+            function (item) {
+
+                return (
+                    selectedDemands.has(item.id) &&
+                    item.status === "pending"
+                );
+
+            }
+        );
+
+
+    if (selected.length === 0) {
+
+        alert(
+            "Please select at least one demand."
+        );
+
+        return;
+    }
+
+
+    const distributorInput =
+        $("distributor");
+
+
+    const distributor =
+        distributorInput
+            ? distributorInput.value.trim()
+            : "";
+
+
+    let message =
+        "Faysal Pharmacy - Order\n\n";
+
+
+    if (distributor) {
+
+        message +=
+            "Distributor: " +
+            distributor +
+            "\n\n";
+
+    }
+
+
+    selected.forEach(
+        function (item, index) {
+
+            message +=
+                (index + 1) +
+                ". " +
+                item.medicine +
+                " - Qty: " +
+                item.quantity +
+                "\n";
+
+        }
+    );
+
+
+    message +=
+        "\nThank you.";
+
+
+    const url =
+        "https://wa.me/?text=" +
+        encodeURIComponent(message);
+
+
+    window.open(
+        url,
+        "_blank"
+    );
+}
+
+
+/* =========================================================
+   ORDERS
+   ========================================================= */
+
+function renderOrders() {
+
+    const list =
+        $("orderList");
+
+    if (!list) return;
+
+
+    if (database.orders.length === 0) {
+
+        list.innerHTML = `
+
+            <div class="empty-state">
+
+                <div class="empty-icon">
+                    🛒
+                </div>
+
+                <h3>
+                    No orders yet
+                </h3>
+
+                <p>
+                    Your distributor orders will appear here.
+                </p>
+
+            </div>
+
+        `;
+
+        return;
+    }
+
+
+    list.innerHTML =
+        database.orders.map(
+            function (order) {
+
+                const items =
+                    Array.isArray(order.items)
+                        ? order.items
+                        : [];
+
+
+                const receivedButton =
+                    order.status !== "received"
+
+                        ? `
+
+                            <button
+                                class="receive-btn"
+                                data-order-id="${escapeHTML(order.id)}"
+                                type="button">
+
+                                Mark Received
+
+                            </button>
+
+                          `
+
+                        : "";
+
+
+                return `
+
+                    <div class="activity-card order-card">
+
+                        <div class="activictedCount");
 
     if (!count) return;
 
