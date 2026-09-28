@@ -1,447 +1,1124 @@
+/* Faysal Pharmacy — Demand & Order Management */
+
+"use strict";
+
 const STORAGE_KEY = "faysalOrdersV2";
 
-let database;
+let database = {
+    demands: [],
+    orders: []
+};
+
 let selectedDemands = new Set();
 let currentOrderItems = [];
+let currentDemandFilter = "all";
 
-try {
-    database = JSON.parse(
-        localStorage.getItem(STORAGE_KEY) ||
-        '{"demands":[],"orders":[]}'
-    );
-} catch (error) {
-    database = { demands: [], orders: [] };
-}
 
 function $(id) {
     return document.getElementById(id);
 }
 
-function save() {
-    localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(database)
-    );
-}
 
 function escapeHTML(value) {
-    return String(value).replace(/[&<>"']/g, function (character) {
-        const map = {
-            "&": "&amp;",
-            "<": "&lt;",
-            ">": "&gt;",
-            '"': "&quot;",
-            "'": "&#039;"
-        };
+    const map = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+    };
+
+    return String(value ?? "").replace(/[&<>"']/g, function (character) {
         return map[character];
     });
 }
 
-function badge(status) {
-    return '<span class="badge ' + status + '">' +
-        status.charAt(0).toUpperCase() + status.slice(1) +
-        '</span>';
+
+function loadDatabase() {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+
+        if (saved) {
+            const parsed = JSON.parse(saved);
+
+            if (parsed && typeof parsed === "object") {
+                database = {
+                    demands: Array.isArray(parsed.demands)
+                        ? parsed.demands
+                        : [],
+
+                    orders: Array.isArray(parsed.orders)
+                        ? parsed.orders
+                        : []
+                };
+            }
+        }
+    } catch (error) {
+        console.error("Could not load saved data:", error);
+
+        database = {
+            demands: [],
+            orders: []
+        };
+    }
 }
 
-function empty(text) {
-    return '<div class="info-card"><p>' +
-        text +
-        '</p></div>';
+
+function saveDatabase() {
+    try {
+        localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify(database)
+        );
+    } catch (error) {
+        console.error("Could not save data:", error);
+
+        alert("Unable to save data on this device.");
+    }
 }
 
-function render() {
-    const pending = database.demands.filter(
-        item => item.status === "pending"
-    ).length;
 
-    const ordered = database.demands.filter(
-        item => item.status === "ordered"
-    ).length;
-
-    const received = database.demands.filter(
-        item => item.status === "received"
-    ).length;
-
-    $("pendingStat").textContent = pending;
-    $("orderedStat").textContent = ordered;
-    $("receivedStat").textContent = received;
-
-    renderHome();
-    renderDemands();
-    renderOrders();
-
-    $("selectedCount").textContent =
-        selectedDemands.size;
+function makeId(prefix) {
+    return (
+        prefix +
+        "_" +
+        Date.now() +
+        "_" +
+        Math.random().toString(36).slice(2, 8)
+    );
 }
 
-function renderHome() {
-    const list = $("homeList");
 
-    const recent = database.demands
-        .slice()
-        .reverse()
-        .slice(0, 5);
+function formatDate(value) {
+    if (!value) return "";
 
-    if (!recent.length) {
-        list.innerHTML = empty("No recent demands.");
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return "";
+    }
+
+    return date.toLocaleString();
+}
+
+
+/* =========================
+   DASHBOARD
+========================= */
+
+function updateDashboard() {
+
+    const pending =
+        database.demands.filter(function (item) {
+            return item.status === "pending";
+        }).length;
+
+    const ordered =
+        database.demands.filter(function (item) {
+            return item.status === "ordered";
+        }).length;
+
+    const received =
+        database.demands.filter(function (item) {
+            return item.status === "received";
+        }).length;
+
+
+    const pendingCount =
+        $("pendingCount");
+
+    const orderedCount =
+        $("orderedCount");
+
+    const receivedCount =
+        $("receivedCount");
+
+
+    if (pendingCount) {
+        pendingCount.textContent = pending;
+    }
+
+    if (orderedCount) {
+        orderedCount.textContent = ordered;
+    }
+
+    if (receivedCount) {
+        receivedCount.textContent = received;
+    }
+
+
+    const pendingAlt =
+        $("summaryPending");
+
+    const orderedAlt =
+        $("summaryOrdered");
+
+    const receivedAlt =
+        $("summaryReceived");
+
+
+    if (pendingAlt) {
+        pendingAlt.textContent = pending;
+    }
+
+    if (orderedAlt) {
+        orderedAlt.textContent = ordered;
+    }
+
+    if (receivedAlt) {
+        receivedAlt.textContent = received;
+    }
+}
+
+
+/* =========================
+   RECENT ACTIVITY
+========================= */
+
+function renderRecentActivity() {
+
+    const list =
+        $("recentActivity");
+
+    if (!list) return;
+
+
+    const recent =
+        database.demands.slice(0, 5);
+
+
+    if (recent.length === 0) {
+
+        list.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📋</div>
+                <h3>No demands yet</h3>
+                <p>Your recent demands will appear here.</p>
+            </div>
+        `;
+
         return;
     }
 
-    list.innerHTML = recent.map(item => `
-        <div class="card">
-            <div class="card-main">
-                <b>${escapeHTML(item.medicine)}</b>
-                <small>
-                    Qty: ${item.quantity}
-                    · By: ${escapeHTML(item.employee)}
-                    <br>
-                    ${new Date(item.createdAt).toLocaleString()}
-                </small>
-            </div>
-            ${badge(item.status)}
-        </div>
-    `).join("");
+
+    list.innerHTML =
+        recent.map(function (item) {
+
+            return `
+                <div class="activity-card">
+
+                    <div class="activity-icon">
+                        📦
+                    </div>
+
+                    <div class="activity-info">
+
+                        <strong>
+                            ${escapeHTML(item.medicine)}
+                        </strong>
+
+                        <span>
+                            Quantity:
+                            ${Number(item.quantity) || 1}
+                        </span>
+
+                        <small>
+                            ${escapeHTML(
+                                formatDate(item.createdAt)
+                            )}
+                        </small>
+
+                    </div>
+
+                    <div class="activity-status">
+                        ${escapeHTML(
+                            capitalize(
+                                item.status || "pending"
+                            )
+                        )}
+                    </div>
+
+                </div>
+            `;
+
+        }).join("");
 }
+
+
+/* =========================
+   DEMANDS
+========================= */
 
 function renderDemands() {
-    const list = $("demandList");
 
-    if (!database.demands.length) {
-        list.innerHTML =
-            empty("No demands yet. Add your first demand.");
-        return;
-    }
+    const list =
+        $("demandsList");
 
-    list.innerHTML = database.demands.map(item => `
-        <div class="card">
+    if (!list) return;
 
-            ${
-                item.status === "pending"
-                ? `
-                    <input
-                        class="check demand-check"
-                        type="checkbox"
-                        data-id="${item.id}"
-                        ${selectedDemands.has(item.id) ? "checked" : ""}
-                    >
-                `
-                : ""
-            }
 
-            <div class="card-main">
-                <b>${escapeHTML(item.medicine)}</b>
+    const searchInput =
+        $("demandSearch");
 
-                <small>
-                    Qty: ${item.quantity}
-                    · By: ${escapeHTML(item.employee)}
 
-                    ${
-                        item.note
-                        ? " · " + escapeHTML(item.note)
-                        : ""
-                    }
+    const searchTerm =
+        searchInput
+            ? searchInput.value.trim().toLowerCase()
+            : "";
 
-                    <br>
-                    ${new Date(item.createdAt).toLocaleString()}
-                </small>
-            </div>
 
-            ${badge(item.status)}
+    const items =
+        database.demands.filter(function (item) {
 
-        </div>
-    `).join("");
+            const matchesStatus =
+                currentDemandFilter === "all" ||
+                item.status === currentDemandFilter;
 
-    document.querySelectorAll(".demand-check")
-        .forEach(check => {
-            check.addEventListener("change", function () {
-                const id = Number(this.dataset.id);
 
-                if (this.checked) {
-                    selectedDemands.add(id);
-                } else {
-                    selectedDemands.delete(id);
-                }
+            const searchable =
+                String(item.medicine || "").toLowerCase() +
+                " " +
+                String(item.note || "").toLowerCase();
 
-                $("selectedCount").textContent =
-                    selectedDemands.size;
-            });
+
+            const matchesSearch =
+                !searchTerm ||
+                searchable.includes(searchTerm);
+
+
+            return (
+                matchesStatus &&
+                matchesSearch
+            );
         });
-}
 
-function renderOrders() {
-    const list = $("orderList");
 
-    if (!database.orders.length) {
-        list.innerHTML = empty("No orders yet.");
-        return;
-    }
+    if (items.length === 0) {
 
-    list.innerHTML = database.orders
-        .slice()
-        .reverse()
-        .map(order => `
-            <div class="card">
-                <div class="card-main">
-                    <b>
-                        ${escapeHTML(
-                            order.distributor || "Unassigned"
-                        )}
-                    </b>
+        list.innerHTML = `
+            <div class="empty-state">
 
-                    <small>
-                        ${order.items.length} item(s)
-                        ·
-                        ${new Date(
-                            order.createdAt
-                        ).toLocaleString()}
-                    </small>
+                <div class="empty-icon">
+                    📋
                 </div>
 
-                ${
-                    order.status === "received"
-                    ? badge("received")
-                    : `
-                        <button
-                            class="small-btn receive-btn"
-                            data-id="${order.id}"
-                        >
-                            Mark Received
-                        </button>
-                    `
-                }
+                <h3>
+                    No demands
+                </h3>
+
+                <p>
+                    Medicine demands will appear here.
+                </p>
+
             </div>
-        `)
-        .join("");
+        `;
 
-    document.querySelectorAll(".receive-btn")
-        .forEach(button => {
-            button.addEventListener("click", function () {
-                markReceived(Number(this.dataset.id));
-            });
-        });
-}
+        return;
+    }
 
-function showPage(pageName) {
-    document.querySelectorAll(".page")
-        .forEach(page => {
-            page.classList.toggle(
-                "active",
-                page.id === pageName
+
+    list.innerHTML =
+        items.map(function (item) {
+
+            const checked =
+                selectedDemands.has(item.id)
+                    ? "checked"
+                    : "";
+
+
+            return `
+                <div
+                    class="activity-card demand-card"
+                    data-demand-id="${escapeHTML(item.id)}"
+                >
+
+                    <div class="activity-icon">
+                        📦
+                    </div>
+
+
+                    <div class="activity-info">
+
+                        <strong>
+                            ${escapeHTML(item.medicine)}
+                        </strong>
+
+                        <span>
+                            Quantity:
+                            ${Number(item.quantity) || 1}
+                        </span>
+
+                        ${
+                            item.note
+                                ? `<span>
+                                    ${escapeHTML(item.note)}
+                                   </span>`
+                                : ""
+                        }
+
+                        <small>
+                            ${escapeHTML(
+                                formatDate(item.createdAt)
+                            )}
+                        </small>
+
+                    </div>
+
+
+                    <div class="activity-status">
+
+                        ${escapeHTML(
+                            capitalize(
+                                item.status || "pending"
+                            )
+                        )}
+
+                    </div>
+
+
+                    ${
+                        item.status === "pending"
+                            ? `
+                                <label class="demand-select">
+
+                                    <input
+                                        type="checkbox"
+                                        class="demand-checkbox"
+                                        data-id="${escapeHTML(item.id)}"
+                                        ${checked}
+                                    >
+
+                                </label>
+                              `
+                            : ""
+                    }
+
+                </div>
+            `;
+
+        }).join("");
+
+
+    list
+        .querySelectorAll(".demand-checkbox")
+        .forEach(function (checkbox) {
+
+            checkbox.addEventListener(
+                "change",
+                function () {
+
+                    const id =
+                        this.dataset.id;
+
+
+                    if (this.checked) {
+
+                        selectedDemands.add(id);
+
+                    } else {
+
+                        selectedDemands.delete(id);
+
+                    }
+
+                }
             );
+
         });
-
-    document.querySelectorAll(".nav")
-        .forEach(nav => {
-            nav.classList.toggle(
-                "active",
-                nav.dataset.page === pageName
-            );
-        });
-
-    render();
 }
 
-function openDemandModal() {
-    $("demandModal").classList.add("open");
-    $("employee").focus();
-}
 
-function closeDemandModal() {
-    $("demandModal").classList.remove("open");
-}
+/* =========================
+   ADD DEMAND
+========================= */
 
-function saveDemand(event) {
+function addDemandFromForm(event) {
+
     event.preventDefault();
 
-    const employee = $("employee").value.trim();
-    const medicine = $("medicine").value.trim();
-    const quantity = Number($("quantity").value);
-    const note = $("note").value.trim();
 
-    if (!employee) {
-        alert("Please enter employee name.");
+    const medicineInput =
+        $("medicineName");
+
+    const quantityInput =
+        $("demandQuantity");
+
+    const noteInput =
+        $("demandNote");
+
+
+    if (!medicineInput) {
+
+        console.error(
+            "medicineName input not found."
+        );
+
         return;
     }
+
+
+    const medicine =
+        medicineInput.value.trim();
+
 
     if (!medicine) {
-        alert("Please enter medicine or product name.");
+
+        alert(
+            "Please enter medicine name."
+        );
+
+        medicineInput.focus();
+
         return;
     }
 
-    if (!quantity || quantity < 1) {
-        alert("Quantity must be at least 1.");
-        return;
+
+    let quantity =
+        parseInt(
+            quantityInput
+                ? quantityInput.value
+                : "1",
+            10
+        );
+
+
+    if (
+        !Number.isFinite(quantity) ||
+        quantity < 1
+    ) {
+
+        quantity = 1;
+
     }
 
-    database.demands.push({
-        id: Date.now(),
-        employee: employee,
+
+    const note =
+        noteInput
+            ? noteInput.value.trim()
+            : "";
+
+
+    const demand = {
+
+        id: makeId("demand"),
+
         medicine: medicine,
+
         quantity: quantity,
+
         note: note,
+
         status: "pending",
-        createdAt: new Date().toISOString()
-    });
 
-    save();
+        createdAt:
+            new Date().toISOString()
 
-    event.target.reset();
-    $("quantity").value = 1;
+    };
+
+
+    database.demands.unshift(
+        demand
+    );
+
+
+    saveDatabase();
+
 
     closeDemandModal();
-    render();
-}
 
-function createOrderMessage(items, distributor) {
-    let message =
-        "FAYSAL PHARMACY\n" +
-        "PURCHASE ORDER\n";
 
-    if (distributor) {
-        message +=
-            "Distributor: " +
-            distributor +
-            "\n";
+    if ($("demandForm")) {
+
+        $("demandForm").reset();
+
     }
 
-    message +=
-        "Date: " +
-        new Date().toLocaleDateString() +
-        "\n\n";
 
-    items.forEach((item, index) => {
-        message +=
-            (index + 1) +
-            ". " +
-            item.medicine +
-            " — Qty: " +
-            item.quantity;
+    if (quantityInput) {
 
-        if (item.note) {
-            message +=
-                " — " +
-                item.note;
-        }
+        quantityInput.value = "1";
 
-        message += "\n";
-    });
-
-    message +=
-        "\nTotal items: " +
-        items.length;
-
-    return message;
-}
-
-function openOrderModal() {
-    if (!selectedDemands.size) {
-        alert("Select at least one pending demand.");
-        return;
     }
 
-    currentOrderItems =
-        database.demands.filter(
-            item => selectedDemands.has(item.id)
-        );
 
-    $("distributor").value = "";
+    updateAllViews();
 
-    $("orderPreview").textContent =
-        createOrderMessage(
-            currentOrderItems,
-            ""
-        );
 
-    $("orderModal").classList.add("open");
-}
-
-function closeOrderModal() {
-    $("orderModal").classList.remove("open");
-}
-
-function updateOrderPreview() {
-    $("orderPreview").textContent =
-        createOrderMessage(
-            currentOrderItems,
-            $("distributor").value.trim()
-        );
-}
-
-function sendWhatsApp() {
-    const message =
-        createOrderMessage(
-            currentOrderItems,
-            $("distributor").value.trim()
-        );
-
-    window.open(
-        "https://wa.me/?text=" +
-        encodeURIComponent(message),
-        "_blank"
+    alert(
+        "Demand added successfully."
     );
 }
 
-function saveOrder() {
-    if (!currentOrderItems.length) {
+
+/* =========================
+   DEMAND MODAL
+========================= */
+
+function openDemandModal() {
+
+    const modal =
+        $("demandModal");
+
+
+    if (!modal) {
+
+        console.warn(
+            "demandModal not found."
+        );
+
         return;
     }
+
+
+    modal.classList.add("active");
+
+    modal.classList.add("show");
+
+    document.body.style.overflow =
+        "hidden";
+
+
+    const medicineInput =
+        $("medicineName");
+
+
+    if (medicineInput) {
+
+        setTimeout(
+            function () {
+
+                medicineInput.focus();
+
+            },
+            100
+        );
+
+    }
+}
+
+
+function closeDemandModal() {
+
+    const modal =
+        $("demandModal");
+
+
+    if (!modal) return;
+
+
+    modal.classList.remove(
+        "active"
+    );
+
+    modal.classList.remove(
+        "show"
+    );
+
+    document.body.style.overflow =
+        "";
+}
+
+
+/* =========================
+   QUANTITY
+========================= */
+
+function changeQuantity(amount) {
+
+    const input =
+        $("demandQuantity");
+
+
+    if (!input) return;
+
+
+    let value =
+        parseInt(
+            input.value,
+            10
+        );
+
+
+    if (
+        !Number.isFinite(value) ||
+        value < 1
+    ) {
+
+        value = 1;
+
+    }
+
+
+    value += amount;
+
+
+    if (value < 1) {
+
+        value = 1;
+
+    }
+
+
+    input.value =
+        value;
+}
+
+
+/* =========================
+   ORDERS
+========================= */
+
+function renderOrders() {
+
+    const list =
+        $("ordersList");
+
+
+    if (!list) return;
+
+
+    if (database.orders.length === 0) {
+
+        list.innerHTML = `
+            <div class="empty-state">
+
+                <div class="empty-icon">
+                    🛒
+                </div>
+
+                <h3>
+                    No orders yet
+                </h3>
+
+                <p>
+                    Your distributor orders
+                    will appear here.
+                </p>
+
+            </div>
+        `;
+
+        return;
+    }
+
+
+    list.innerHTML =
+        database.orders.map(
+            function (order) {
+
+                const items =
+                    Array.isArray(order.items)
+                        ? order.items
+                        : [];
+
+
+                return `
+                    <div class="activity-card order-card">
+
+                        <div class="activity-icon">
+                            🛒
+                        </div>
+
+
+                        <div class="activity-info">
+
+                            <strong>
+                                ${escapeHTML(
+                                    order.distributor ||
+                                    "Distributor order"
+                                )}
+                            </strong>
+
+                            <span>
+                                ${items.length}
+                                item${
+                                    items.length === 1
+                                        ? ""
+                                        : "s"
+                                }
+                            </span>
+
+                            <small>
+                                ${escapeHTML(
+                                    formatDate(
+                                        order.createdAt
+                                    )
+                                )}
+                            </small>
+
+                        </div>
+
+
+                        <div class="activity-status">
+
+                            ${escapeHTML(
+                                capitalize(
+                                    order.status ||
+                                    "pending"
+                                )
+                            )}
+
+                        </div>
+
+                    </div>
+                `;
+
+            }
+        ).join("");
+}
+
+
+function createOrderFromSelectedDemands() {
+
+    const selected =
+        database.demands.filter(
+            function (item) {
+
+                return (
+                    selectedDemands.has(item.id) &&
+                    item.status === "pending"
+                );
+
+            }
+        );
+
+
+    if (selected.length === 0) {
+
+        alert(
+            "Select at least one pending demand first."
+        );
+
+        return;
+    }
+
 
     const distributor =
-        $("distributor").value.trim();
+        prompt(
+            "Enter distributor name:"
+        );
 
-    database.orders.push({
-        id: Date.now(),
-        distributor: distributor,
-        items: currentOrderItems.map(item => ({ ...item })),
-        status: "ordered",
-        createdAt: new Date().toISOString()
-    });
 
-    const ids = new Set(
-        currentOrderItems.map(item => item.id)
-    );
+    if (distributor === null) {
 
-    database.demands.forEach(item => {
-        if (ids.has(item.id)) {
-            item.status = "ordered";
-        }
-    });
-
-    selectedDemands.clear();
-    currentOrderItems = [];
-
-    save();
-    closeOrderModal();
-    showPage("orders");
-}
-
-function markReceived(orderId) {
-    const order = database.orders.find(
-        item => item.id === orderId
-    );
-
-    if (!order) {
         return;
+
     }
 
-    const ids = new Set(
-        order.items.map(item => item.id)
+
+    const name =
+        distributor.trim() ||
+        "Distributor";
+
+
+    const order = {
+
+        id: makeId("order"),
+
+        distributor: name,
+
+        status: "ordered",
+
+        items:
+            selected.map(
+                function (item) {
+
+                    return {
+
+                        demandId: item.id,
+
+                        medicine: item.medicine,
+
+                        quantity: item.quantity
+
+                    };
+
+                }
+            ),
+
+        createdAt:
+            new Date().toISOString()
+
+    };
+
+
+    database.orders.unshift(
+        order
     );
 
-    database.demands.forEach(item => {
-        if (ids.has(item.id)) {
-            item.status = "received";
+
+    selected.forEach(
+        function (item) {
+
+            item.status =
+                "ordered";
+
         }
-    });
+    );
 
-    order.status = "received";
 
-    save();
-    render();
+    selectedDemands.clear();
+
+
+    currentOrderItems =
+        order.items.slice();
+
+
+    saveDatabase();
+
+
+    updateAllViews();
+
+
+    alert(
+        "Order created successfully."
+    );
 }
 
-function clearData() {
-    if (!confirm("Clear all local demo data?")) {
+
+/* =========================
+   NAVIGATION
+========================= */
+
+function setupNavigation() {
+
+    const navItems =
+        document.querySelectorAll(
+            ".nav-item"
+        );
+
+
+    const screens =
+        document.querySelectorAll(
+            ".screen"
+        );
+
+
+    navItems.forEach(
+        function (nav) {
+
+            nav.addEventListener(
+                "click",
+                function () {
+
+                    const target =
+                        nav.dataset.screen;
+
+
+                    if (!target) return;
+
+
+                    navItems.forEach(
+                        function (item) {
+
+                            item.classList.remove(
+                                "active"
+                            );
+
+                        }
+                    );
+
+
+                    screens.forEach(
+                        function (screen) {
+
+                            screen.classList.remove(
+                                "active"
+                            );
+
+                        }
+                    );
+
+
+                    nav.classList.add(
+                        "active"
+                    );
+
+
+                    const targetScreen =
+                        $(target);
+
+
+                    if (targetScreen) {
+
+                        targetScreen.classList.add(
+                            "active"
+                        );
+
+                    }
+
+                }
+            );
+
+        }
+    );
+}
+
+
+/* =========================
+   SEARCH & FILTERS
+========================= */
+
+function setupDemandFilters() {
+
+    const search =
+        $("demandSearch");
+
+
+    if (search) {
+
+        search.addEventListener(
+            "input",
+            renderDemands
+        );
+
+    }
+
+
+    const possibleButtons =
+        document.querySelectorAll(
+            "[data-filter], .filter-btn, .demand-filter"
+        );
+
+
+    possibleButtons.forEach(
+        function (button) {
+
+            button.addEventListener(
+                "click",
+                function () {
+
+                    const filter =
+                        this.dataset.filter ||
+                        this.dataset.status ||
+                        this.getAttribute(
+                            "data-value"
+                        );
+
+
+                    if (!filter) return;
+
+
+                    currentDemandFilter =
+                        filter.toLowerCase();
+
+
+                    possibleButtons.forEach(
+                        function (item) {
+
+                            item.classList.remove(
+                                "active"
+                            );
+
+                        }
+                    );
+
+
+                    this.classList.add(
+                        "active"
+                    );
+
+
+                    renderDemands();
+
+                }
+            );
+
+        }
+    );
+}
+
+
+/* =========================
+   BUTTON SETUP
+========================= */
+
+function setupButtons() {
+
+    const addDemandBtn =
+        $("addDemandBtn");
+
+
+    if (addDemandBtn) {
+
+        addDemandBtn.addEventListener(
+            "click",
+            openDemandModal
+        );
+
+    }
+
+
+    const closeButton =
+        $("closeDemandModal");
+
+
+    if (closeButton) {
+
+        closeButton.addEventListener(
+            "click",
+            closeDemandModal
+        );
+
+    }
+
+
+    const overlay =
+        document.querySelector(
+            ".modal-overlay"
+        );
+
+
+    if (overlay) {
+
+        overlay.addEventListener(
+            "click",
+            closeDemandModal
+        );
+
+    }
+
+
+    const form =
+        $("demandForm");
+
+
+    if (form) {
+
+        form.addEventListener(
+            "submit",
+            addDemandFromForm
+        );
+
+    }
+
+
+    const increaseButton =
+        $("increaseQuantity");
+
+
+    if (increaseButton) {
+
+        increaseButton.addEventListener(
+            "click",
+            function () {
+
+                changeQuantity(1);
+
+            }
+        );
+
+    }
+
+
+    const decreaseButton =
+        $("decreaseQuantity");
+
+
+    if (decreaseButton) {
+
+        decreaseButton.addEventListener(
+        rm("Clear all local demo data?")) {
         return;
     }
 
