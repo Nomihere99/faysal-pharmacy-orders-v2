@@ -985,7 +985,173 @@ function saveOrder() {
    WHATSAPP
    ========================================================= */
 
-function sendOrderWhatsApp() {
+function sendOrderWhatsApp() {document.addEventListener("DOMContentLoaded", function () {
+
+    loadDatabase();
+
+    /* Add Demand */
+    const addDemandBtn = $("addDemandBtn");
+
+    if (addDemandBtn) {
+        addDemandBtn.addEventListener(
+            "click",
+            openDemandModal
+        );
+    }
+
+
+    /* Close Demand */
+    const closeModal = $("closeModal");
+
+    if (closeModal) {
+        closeModal.addEventListener(
+            "click",
+            closeDemandModal
+        );
+    }
+
+
+    /* Demand Backdrop */
+    const demandBackdrop =
+        document.querySelector(
+            "#demandModal .backdrop"
+        );
+
+    if (demandBackdrop) {
+        demandBackdrop.addEventListener(
+            "click",
+            closeDemandModal
+        );
+    }
+
+
+    /* Demand Form */
+    const demandForm = $("demandForm");
+
+    if (demandForm) {
+        demandForm.addEventListener(
+            "submit",
+            saveDemand
+        );
+    }
+
+
+    /* Quantity + */
+    const plus = $("plus");
+
+    if (plus) {
+        plus.addEventListener(
+            "click",
+            increaseQuantity
+        );
+    }
+
+
+    /* Quantity - */
+    const minus = $("minus");
+
+    if (minus) {
+        minus.addEventListener(
+            "click",
+            decreaseQuantity
+        );
+    }
+
+
+    /* CREATE ORDER
+       IMPORTANT:
+       Your HTML uses makeOrderBtn
+    */
+
+    const makeOrderBtn =
+        $("makeOrderBtn");
+
+    if (makeOrderBtn) {
+        makeOrderBtn.addEventListener(
+            "click",
+            openOrderModal
+        );
+    }
+
+
+    /* Close Order */
+    const closeOrder =
+        $("closeOrder");
+
+    if (closeOrder) {
+        closeOrder.addEventListener(
+            "click",
+            closeOrderModal
+        );
+    }
+
+
+    /* Order Backdrop */
+    const orderBackdrop =
+        document.querySelector(
+            "#orderModal .backdrop"
+        );
+
+    if (orderBackdrop) {
+        orderBackdrop.addEventListener(
+            "click",
+            closeOrderModal
+        );
+    }
+
+
+    /* WhatsApp */
+    const whatsappBtn =
+        $("whatsappBtn");
+
+    if (whatsappBtn) {
+        whatsappBtn.addEventListener(
+            "click",
+            sendOrderWhatsApp
+        );
+    }
+
+
+    /* Save Order */
+    const saveOrderBtn =
+        $("saveOrderBtn");
+
+    if (saveOrderBtn) {
+        saveOrderBtn.addEventListener(
+            "click",
+            saveOrder
+        );
+    }
+
+
+    /* Clear Data */
+    const clearDataBtn =
+        $("clearDataBtn");
+
+    if (clearDataBtn) {
+        clearDataBtn.addEventListener(
+            "click",
+            clearAllData
+        );
+    }
+
+
+    /* Navigation */
+    setupNavigation();
+
+
+    /* Initial display */
+    updateDashboard();
+    renderHome();
+    renderDemands();
+    renderOrders();
+
+
+    console.log(
+        "Faysal Pharmacy app is ready."
+    );
+
+});
 
     const selected =
         database.demands.filter(
